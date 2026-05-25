@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Riverside Cemetery of Oswego</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1B3A2D;--green-mid:#2E6B4F;--green-light:#D6EAD8;--green-pale:#EAF3DE;
+  --gold:#C9A84C;--gold-light:#FAEEDA;
+  --text:#1a1a1a;--muted:#666;--hint:#999;
+  --bg:#fff;--surface:#f8f8f6;
+  --border:#e0e0da;--border-s:#ccc;
+  --red:#A32D2D;--red-bg:#FCEBEB;
+  --blue:#185FA5;--blue-bg:#E6F1FB;
+  --r:10px;--rs:6px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;color:var(--text);background:var(--surface);min-height:100vh;-webkit-tap-highlight-color:transparent}
+
+/* SETUP SCREEN */
+#setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:1.5rem 1rem;background:var(--surface)}
+.setup-seal{width:64px;height:64px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:1rem;box-shadow:0 4px 14px rgba(27,58,45,.22)}
+.setup-seal svg{width:32px;height:32px;stroke:#fff;fill:none;stroke-width:1.8}
+.setup-h{font-size:19px;font-weight:700;color:var(--green);margin-bottom:3px;text-align:center}
+.setup-s{font-size:13px;color:var(--muted);margin-bottom:1.5rem;text-align:center;line-height:1.5}
+.setup-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;width:100%;max-width:400px}
+.setup-card h2{font-size:15px;font-weight:700;color:var(--text);margin-bottom:.25rem}
+.setup-card p{font-size:13px;color:var(--muted);margin-bottom:1rem;line-height:1.5}
+.steps{margin-bottom:1.25rem}
+.step{display:flex;gap:12px;margin-bottom:.75rem;align-items:flex-start}
+.stepn{width:24px;height:24px;border-radius:50%;background:var(--green);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.steptext{font-size:13px;color:var(--text);line-height:1.5}
+.steptext a{color:var(--blue);font-weight:600}
+.steptext code{background:var(--surface);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px;border:1px solid var(--border)}
+.skip-link{text-align:center;margin-top:.75rem;font-size:13px;color:var(--muted)}
+.skip-link a{color:var(--blue);cursor:pointer;font-weight:600}
+
+/* AUTH */
+#auth{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:2rem 1rem;background:var(--surface)}
+.auth-seal{width:72px;height:72px;background:var(--green);border-radius:50%;display:flex;align-items:center;justify-content:center;margin-bottom:1.25rem;box-shadow:0 4px 16px rgba(27,58,45,.25)}
+.auth-seal svg{width:36px;height:36px;stroke:#fff;fill:none;stroke-width:1.8}
+.auth-h{font-size:20px;font-weight:700;color:var(--green);margin-bottom:4px;text-align:center}
+.auth-s{font-size:13px;color:var(--muted);margin-bottom:1.75rem;text-align:center;line-height:1.5}
+.auth-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.5rem;width:100%;max-width:360px;box-shadow:0 2px 12px rgba(0,0,0,.07)}
+.sync-badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:4px 10px;border-radius:20px;margin-bottom:1rem;font-weight:600}
+.sync-ok{background:var(--green-light);color:var(--green)}
+.sync-local{background:var(--gold-light);color:#6B3E0A}
+.rtabs{display:flex;gap:3px;background:var(--surface);border-radius:var(--rs);padding:3px;margin-bottom:1.25rem}
+.rtab{flex:1;padding:7px;text-align:center;font-size:13px;font-weight:500;border-radius:4px;cursor:pointer;color:var(--muted);border:none;background:transparent;transition:all .15s;font-family:inherit}
+.rtab.on{background:#fff;color:var(--green);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+/* COMMON */
+.fld{margin-bottom:.9rem}
+.fld label{display:block;font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border-s);border-radius:var(--rs);font-size:14px;background:#fff;color:var(--text);outline:none;-webkit-appearance:none;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:var(--green-mid);box-shadow:0 0 0 3px rgba(46,107,79,.1)}
+textarea{resize:vertical;min-height:72px;line-height:1.5}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 18px;border-radius:var(--rs);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;font-family:inherit}
+.btn-p{background:var(--green);color:#fff;width:100%}
+.btn-p:hover{opacity:.88}
+.btn-o{background:transparent;color:var(--green);border:1.5px solid var(--green)}
+.btn-o:hover{background:var(--green-pale)}
+.btn-d{background:var(--red-bg);color:var(--red);border:1px solid rgba(163,45,45,.3)}
+.btn-sm{padding:7px 13px;font-size:13px;width:auto}
+.err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+.hint{color:var(--hint);font-size:12px;margin-top:.75rem;text-align:center;line-height:1.5;padding:8px;background:var(--surface);border-radius:var(--rs)}
+
+/* APP */
+#app{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:var(--green);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.topbar-l .t1{font-size:15px;font-weight:700}
+.topbar-l .t2{font-size:11px;opacity:.7;margin-top:1px}
+.topbar-r{display:flex;align-items:center;gap:8px}
+.ubadge{background:rgba(255,255,255,.18);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:500}
+.cloud-dot{width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;margin-right:3px}
+.cloud-dot.off{background:#fbbf24}
+.lout{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:var(--rs);padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+.nav{display:flex;background:#fff;border-bottom:1px solid var(--border);overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.ni{flex:1;min-width:64px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:9px 4px 8px;font-size:10px;font-weight:600;color:var(--muted);cursor:pointer;border:none;background:transparent;border-bottom:2px solid transparent;letter-spacing:.02em;text-transform:uppercase;transition:color .15s;white-space:nowrap;font-family:inherit}
+.ni svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.8;margin-bottom:1px}
+.ni.on{color:var(--green);border-bottom-color:var(--green)}
+.pg{flex:1;padding:1rem;overflow-y:auto;padding-bottom:2rem}
+
+/* MAP */
+#pMap{display:none}
+#map{height:360px;border-radius:var(--r);border:1px solid var(--border);overflow:hidden;margin-bottom:.75rem}
+.legend{background:#fff;border:1px solid var(--border);border-radius:var(--rs);padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-bottom:.75rem}
+.li{display:flex;align-items:center;gap:5px}
+.ld{width:10px;height:10px;border-radius:50%}
+
+/* RECORDS */
+#pRec{display:none}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:.9rem}
+.sbox{background:#fff;border:1px solid var(--border);border-radius:var(--rs);padding:10px 12px}
+.sbox .n{font-size:22px;font-weight:700;color:var(--green)}
+.sbox .l{font-size:11px;color:var(--muted);margin-top:1px}
+.sbar{display:flex;gap:8px;margin-bottom:.9rem}
+.sbar input{flex:1;padding:9px 12px}
+.rcard{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s,box-shadow .15s}
+.rcard:hover{border-color:var(--green-mid);box-shadow:0 2px 8px rgba(27,58,45,.08)}
+.rcard-thumb{width:54px;height:54px;border-radius:var(--rs);object-fit:cover;border:1px solid var(--border);float:right;margin-left:10px;margin-bottom:4px}
+.rcard-thumb-ph{width:54px;height:54px;border-radius:var(--rs);background:var(--surface);border:1px dashed var(--border-s);float:right;margin-left:10px;display:flex;align-items:center;justify-content:center;color:var(--hint);font-size:10px;text-align:center;line-height:1.3}
+.rname{font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px}
+.rmeta{font-size:12px;color:var(--muted);line-height:1.6}
+.pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;clear:both}
+.pill{display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:11px;font-weight:600}
+.p-not{background:var(--gold-light);color:#6B3E0A}
+.p-gps{background:var(--blue-bg);color:var(--blue)}
+.p-ph{background:var(--green-light);color:var(--green)}
+
+.empty{text-align:center;padding:3rem 1rem;color:var(--muted);font-size:14px}
+.loading{text-align:center;padding:2rem;color:var(--muted);font-size:14px}
+
+/* ADD */
+#pAdd{display:none}
+.sh{font-size:11px;font-weight:700;color:var(--green);margin:1.25rem 0 .65rem;text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--green-light);padding-bottom:4px;display:flex;align-items:center;gap:6px}
+.sh svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gbox{background:var(--green-pale);border:1px solid var(--green-light);border-radius:var(--rs);padding:12px;margin-bottom:.9rem}
+.gcoords{font-size:13px;color:var(--green);font-weight:600;margin-top:6px;font-family:monospace;display:none}
+.gst{font-size:12px;color:var(--muted);margin-top:4px}
+.photo-upload-area{border:2px dashed var(--border-s);border-radius:var(--r);padding:1.5rem;text-align:center;cursor:pointer;background:#fff;transition:border-color .15s;position:relative;margin-bottom:.9rem}
+.photo-upload-area:hover{border-color:var(--green-mid);background:var(--green-pale)}
+.photo-upload-area input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.photo-upload-area svg{width:32px;height:32px;stroke:var(--muted);fill:none;stroke-width:1.5;margin-bottom:8px}
+.photo-upload-area p{font-size:13px;color:var(--muted);line-height:1.5}
+.photo-preview-wrap{position:relative;margin-bottom:.9rem;display:none}
+.photo-preview-wrap img{width:100%;max-height:280px;object-fit:cover;border-radius:var(--r);border:1px solid var(--border);display:block}
+.photo-remove{position:absolute;top:8px;right:8px;background:rgba(163,45,45,.9);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* DETAIL */
+#pDet{display:none}
+.back{display:inline-flex;align-items:center;gap:5px;color:var(--green);font-size:14px;font-weight:600;cursor:pointer;background:none;border:none;padding:0;margin-bottom:1rem;font-family:inherit}
+.back svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.5}
+.dcard{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:1.25rem;margin-bottom:.9rem}
+.dname{font-size:20px;font-weight:700;color:var(--text);margin-bottom:2px}
+.ddates{font-size:14px;color:var(--muted);margin-bottom:.9rem}
+.dgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:.9rem}
+.di .lb{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.di .vl{font-size:14px;color:var(--text);line-height:1.4}
+#dmap{height:200px;border-radius:var(--rs);border:1px solid var(--border);overflow:hidden;margin-bottom:.9rem}
+.nbox{background:var(--surface);border-radius:var(--rs);padding:12px;font-size:13px;color:var(--muted);line-height:1.6;border-left:3px solid var(--green-mid)}
+.hstone-photo{width:100%;border-radius:var(--r);border:1px solid var(--border);margin-bottom:.9rem;display:block;cursor:zoom-in}
+.hstone-ph{background:var(--surface);border:1px dashed var(--border-s);border-radius:var(--r);padding:2rem;text-align:center;color:var(--hint);font-size:13px;margin-bottom:.9rem}
+.arow{display:flex;gap:8px;flex-wrap:wrap;margin-top:.9rem;padding-top:.9rem;border-top:1px solid var(--border)}
+
+/* LIGHTBOX */
+#lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:999;align-items:center;justify-content:center}
+#lb.on{display:flex}
+#lb img{max-width:96vw;max-height:92vh;border-radius:var(--rs);object-fit:contain}
+#lb-close{position:fixed;top:16px;right:16px;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:50%;width:40px;height:40px;font-size:22px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ADMIN */
+#pAdm{display:none}
+.mcard{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.minfo .mn{font-size:14px;font-weight:700}
+.minfo .me{font-size:12px;color:var(--muted)}
+.mrole{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:700}
+.r-adm{background:var(--green-light);color:var(--green)}
+.r-mem{background:var(--blue-bg);color:var(--blue)}
+.r-off{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+.tbtn{padding:5px 10px;border-radius:var(--rs);font-size:12px;cursor:pointer;border:1px solid var(--border-s);background:#fff;color:var(--text);font-family:inherit;font-weight:600}
+.xbtns{display:flex;gap:8px;flex-wrap:wrap}
+.info-box{background:var(--blue-bg);border:1px solid rgba(24,95,165,.2);border-radius:var(--rs);padding:12px 14px;font-size:13px;color:#0C447C;line-height:1.6;margin-bottom:.9rem}
+.info-box strong{font-weight:700;display:block;margin-bottom:4px}
+.info-box code{background:rgba(24,95,165,.1);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px}
+.conn-status{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--rs);font-size:13px;font-weight:600;margin-bottom:.9rem}
+.conn-ok{background:var(--green-light);color:var(--green)}
+.conn-off{background:var(--gold-light);color:#6B3E0A}
+
+/* TOAST */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(8px);background:var(--green);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:600;z-index:9999;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none;white-space:nowrap;box-shadow:0 4px 14px rgba(27,58,45,.35)}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- LIGHTBOX -->
+<div id="lb" onclick="closeLB()">
+  <img id="lb-img" src="" alt="Headstone photo enlarged">
+  <button id="lb-close" onclick="closeLB()" aria-label="Close">✕</button>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup-seal"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+  <div class="setup-h">Riverside Cemetery of Oswego</div>
+  <div class="setup-s">One-time cloud setup — takes about 5 minutes</div>
+  <div class="setup-card">
+    <h2>Connect to Supabase (free)</h2>
+    <p>This gives every device — phones in the field, office computers, member devices — access to the same live records and headstone photos.</p>
+    <div class="steps">
+      <div class="step"><div class="stepn">1</div><div class="steptext">Go to <a href="https://supabase.com" target="_blank">supabase.com</a> and create a free account</div></div>
+      <div class="step"><div class="stepn">2</div><div class="steptext">Click <strong>New Project</strong>, name it <code>riverside-cemetery</code>, choose a region closest to New York</div></div>
+      <div class="step"><div class="stepn">3</div><div class="steptext">Once created, go to <strong>Project Settings → API</strong> and copy your Project URL and anon/public key</div></div>
+      <div class="step"><div class="stepn">4</div><div class="steptext">Go to <strong>SQL Editor</strong> in Supabase and run the setup SQL (tap "Copy SQL" below, paste it there, click Run)</div></div>
+      <div class="step"><div class="stepn">5</div><div class="steptext">Paste your URL and key below and tap Connect</div></div>
+    </div>
+    <button class="btn btn-o btn-sm" onclick="copySQL()" style="margin-bottom:1rem;width:100%">Copy setup SQL to clipboard</button>
+    <div class="fld"><label>Supabase Project URL</label><input id="sb-url" placeholder="https://xxxxxxxxxxxx.supabase.co"/></div>
+    <div class="fld"><label>Supabase Anon Key</label><input id="sb-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."/></div>
+    <button class="btn btn-p" onclick="connectCloud()">Connect to cloud &amp; continue</button>
+    <div class="err" id="sb-err">Could not connect. Check your URL and key and try again.</div>
+    <div class="skip-link">Already set up, or want to test locally first? <a onclick="skipCloud()">Skip and use local storage</a></div>
+  </div>
+</div>
+
+<!-- AUTH -->
+<div id="auth">
+  <div class="auth-seal"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+  <div class="auth-h">Riverside Cemetery of Oswego</div>
+  <div class="auth-s">Est. 1855 · National Register of Historic Places</div>
+  <div class="auth-card">
+    <div id="sync-badge" class="sync-badge sync-local"><span class="cloud-dot off"></span>Local storage</div>
+    <div class="rtabs">
+      <button class="rtab on" onclick="setRole('member',this)">Member</button>
+      <button class="rtab" onclick="setRole('admin',this)">Admin / Staff</button>
+    </div>
+    <div class="fld"><label>Email</label><input type="email" id="le" placeholder="your@email.com"/></div>
+    <div class="fld"><label>Password</label><input type="password" id="lp" placeholder="Password" onkeydown="if(event.key==='Enter')login()"/></div>
+    <button class="btn btn-p" onclick="login()">Sign in</button>
+    <div class="err" id="lerr">Incorrect email or password.</div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-l">
+      <div class="t1">Riverside Cemetery</div>
+      <div class="t2" id="tsub">Oswego, NY</div>
+    </div>
+    <div class="topbar-r">
+      <span class="ubadge" id="ubadge">Member</span>
+      <button class="lout" onclick="logout()">Sign out</button>
+    </div>
+  </div>
+  <div class="nav">
+    <button class="ni on" id="ni-map" onclick="go('map')">
+      <svg viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 9m0 8V9m0 0L9 7"/></svg>Map
+    </button>
+    <button class="ni" id="ni-rec" onclick="go('rec')">
+      <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9h10M7 13h6"/></svg>Records
+    </button>
+    <button class="ni" id="ni-add" onclick="go('add')" style="display:none">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add
+    </button>
+    <button class="ni" id="ni-adm" onclick="go('adm')" style="display:none">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>Admin
+    </button>
+  </div>
+  <div class="pg">
+
+    <!-- MAP -->
+    <div id="pMap">
+      <div id="map"></div>
+      <div class="legend">
+        <div class="li"><div class="ld" style="background:#1B3A2D"></div>Notable burial</div>
+        <div class="li"><div class="ld" style="background:#185FA5"></div>Standard burial</div>
+        <div class="li"><div class="ld" style="background:#C9A84C"></div>Has headstone photo</div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);text-align:center" id="mapinfo">Loading burials...</div>
+    </div>
+
+    <!-- RECORDS -->
+    <div id="pRec">
+      <div class="sgrid">
+        <div class="sbox"><div class="n" id="st">0</div><div class="l">Total burials</div></div>
+        <div class="sbox"><div class="n" id="sg">0</div><div class="l">GPS pinned</div></div>
+        <div class="sbox"><div class="n" id="sp">0</div><div class="l">With photos</div></div>
+        <div class="sbox"><div class="n" id="sn">0</div><div class="l">Notable</div></div>
+        <div class="sbox"><div class="n" id="sv">0</div><div class="l">Veterans</div></div>
+      </div>
+      <div class="sbar"><input id="srch" placeholder="Search name, section, lot, notes..." oninput="renderRec()"/></div>
+      <div id="rlist"><div class="loading">Loading records...</div></div>
+    </div>
+
+    <!-- ADD (admin) -->
+    <div id="pAdd">
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Deceased information</div>
+      <div class="frow">
+        <div class="fld"><label>First name</label><input id="af" placeholder="First name"/></div>
+        <div class="fld"><label>Last name</label><input id="al" placeholder="Last name"/></div>
+      </div>
+      <div class="frow">
+        <div class="fld"><label>Date of birth</label><input id="adb" placeholder="e.g. Jan 1, 1850"/></div>
+        <div class="fld"><label>Date of death</label><input id="adod" placeholder="e.g. Mar 15, 1920"/></div>
+      </div>
+      <div class="frow">
+        <div class="fld"><label>Age at death</label><input type="number" id="aage" placeholder="Age"/></div>
+        <div class="fld"><label>Gender</label><select id="agn"><option value="">Select...</option><option>Male</option><option>Female</option><option>Unknown</option></select></div>
+      </div>
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>Plot location</div>
+      <div class="frow">
+        <div class="fld"><label>Section</label><input id="asec" placeholder="e.g. M"/></div>
+        <div class="fld"><label>Lot number</label><input id="alot" placeholder="e.g. 6"/></div>
+      </div>
+      <div class="frow">
+        <div class="fld"><label>Grave number</label><input id="agr" placeholder="e.g. 1"/></div>
+        <div class="fld"><label>Lot owner / family</label><input id="aown" placeholder="Family name"/></div>
+      </div>
+      <div class="fld"><label>Relationship to owner</label><input id="arel" placeholder="e.g. Spouse, Son, Daughter..."/></div>
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>Record reference</div>
+      <div class="frow">
+        <div class="fld"><label>Book number</label><input id="abook" placeholder="e.g. 3"/></div>
+        <div class="fld"><label>Page number</label><input id="apage" placeholder="e.g. 42"/></div>
+      </div>
+      <div class="fld"><label>Lot size</label><input id="alotsize" placeholder="e.g. Single, Double, Family"/></div>
+      <div class="sh"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>GPS location</div>
+      <div class="gbox">
+        <button class="btn btn-o btn-sm" onclick="captureGPS()">Capture my current GPS location</button>
+        <div class="gcoords" id="gcrd"></div>
+        <div class="gst" id="gst">Stand at the grave and tap to pin its exact location.</div>
+        <div class="frow" style="margin-top:10px">
+          <div class="fld" style="margin:0"><label>Latitude</label><input type="number" id="alat" placeholder="43.4231" step="0.000001"/></div>
+          <div class="fld" style="margin:0"><label>Longitude</label><input type="number" id="alng" placeholder="-76.4758" step="0.000001"/></div>
+        </div>
+      </div>
+      <div class="sh"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>Headstone photo</div>
+      <div id="photo-preview-wrap" class="photo-preview-wrap">
+        <img id="photo-preview" src="" alt="Headstone preview"/>
+        <button class="photo-remove" onclick="removePhoto()">✕</button>
+      </div>
+      <div class="photo-upload-area" id="photo-drop">
+        <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="handlePhoto(this)"/>
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        <p><strong>Tap to photograph headstone</strong><br>or upload from camera roll</p>
+      </div>
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M12 2L8 6H3l2 5-4 4 4 1 1 4 4-2 4 2 1-4 4-1-4-4 2-5H12zM12 2v20M2 12h20" stroke="currentColor"/><polygon points="12,2 15,9 22,9 17,14 19,21 12,17 5,21 7,14 2,9 9,9"/></svg>Military service</div>
+      <div class="fld">
+        <label>Veteran status</label>
+        <select id="avet" onchange="toggleVetFields()">
+          <option value="0">Not a veteran</option>
+          <option value="1">Veteran</option>
+        </select>
+      </div>
+      <div id="vet-fields" style="display:none">
+        <div class="frow">
+          <div class="fld"><label>Branch of service</label>
+            <select id="abranch">
+              <option value="">Select branch...</option>
+              <option>Army</option>
+              <option>Navy</option>
+              <option>Marine Corps</option>
+              <option>Air Force</option>
+              <option>Coast Guard</option>
+              <option>Space Force</option>
+              <option>Merchant Marine</option>
+              <option>National Guard</option>
+            </select>
+          </div>
+          <div class="fld"><label>Rank</label><input id="arank" placeholder="e.g. Sergeant"/></div>
+        </div>
+        <div class="frow">
+          <div class="fld"><label>Service from</label><input id="asvfrom" placeholder="e.g. 1942"/></div>
+          <div class="fld"><label>Service to</label><input id="asvto" placeholder="e.g. 1945"/></div>
+        </div>
+        <div class="fld"><label>War / Conflict served</label>
+          <select id="awar">
+            <option value="">Select...</option>
+            <option>Revolutionary War</option>
+            <option>War of 1812</option>
+            <option>Mexican-American War</option>
+            <option>Civil War — Union</option>
+            <option>Civil War — Confederate</option>
+            <option>Spanish-American War</option>
+            <option>World War I</option>
+            <option>World War II</option>
+            <option>Korean War</option>
+            <option>Vietnam War</option>
+            <option>Gulf War</option>
+            <option>War in Afghanistan</option>
+            <option>Iraq War</option>
+            <option>Peacetime service</option>
+            <option>Multiple conflicts</option>
+          </select>
+        </div>
+        <div class="fld"><label>Awards / decorations</label><input id="aawards" placeholder="e.g. Purple Heart, Bronze Star"/></div>
+      </div>
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8"/></svg>Additional details</div>
+      
+      <div class="fld"><label>Historical significance</label>
+        <select id="anot"><option value="0">Standard burial</option><option value="1">Notable — include in tours &amp; highlights</option></select>
+      </div>
+      <div class="fld"><label>Historical notes</label><textarea id="anotes" placeholder="Family history, military service, notable achievements, research sources..."></textarea></div>
+      <button class="btn btn-p" id="save-btn" onclick="saveRec()">Save burial record</button>
+      <div class="err" id="aerr">Please enter at least a first and last name.</div>
+      <div style="height:2rem"></div>
+    </div>
+
+    <!-- DETAIL -->
+    <div id="pDet">
+      <button class="back" onclick="goBack()"><svg viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>Back</button>
+      <div id="dcont"></div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="pAdm">
+      <div class="sh" style="margin-top:0"><svg viewBox="0 0 24 24"><path d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"/></svg>Cloud connection</div>
+      <div id="conn-status-box" class="conn-status conn-off">⚠ Using local storage — not synced across devices</div>
+      <div class="info-box">
+        <strong>How to connect to Supabase</strong>
+        Go to your Supabase project → Settings → API. Copy your Project URL and anon key, paste below, and tap Connect. All records and photos will sync across every device instantly.
+      </div>
+      <div class="fld"><label>Supabase Project URL</label><input id="adm-url" placeholder="https://xxxxxxxxxxxx.supabase.co"/></div>
+      <div class="fld"><label>Supabase Anon Key</label><input id="adm-key" placeholder="eyJhb..."/></div>
+      <button class="btn btn-o btn-sm" onclick="reconnectCloud()" style="margin-bottom:1.25rem">Connect / Reconnect</button>
+      <button class="btn btn-o btn-sm" onclick="copySQL()" style="margin-bottom:1.5rem">Copy database setup SQL</button>
+
+      <div class="sh"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Member management</div>
+      <div id="mlist"></div>
+      <div class="sh" style="margin-top:1.25rem"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add new member</div>
+      <div class="fld"><label>Full name</label><input id="mn" placeholder="Full name"/></div>
+      <div class="fld"><label>Email</label><input id="me" placeholder="email@example.com"/></div>
+      <div class="fld"><label>Password</label><input type="password" id="mpw" placeholder="Temporary password"/></div>
+      <div class="fld"><label>Role</label><select id="mr"><option value="member">Member</option><option value="admin">Admin / Staff</option></select></div>
+      <button class="btn btn-o btn-sm" onclick="addMember()">Add member</button>
+      <div class="err" id="merr"></div>
+
+      <div class="sh" style="margin-top:1.5rem"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Change password</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:.75rem">Change password for any member or your own admin account.</div>
+      <div class="fld"><label>Member email</label><input id="cp-email" placeholder="email@example.com"/></div>
+      <div class="fld"><label>New password</label><input type="password" id="cp-new" placeholder="New password"/></div>
+      <div class="fld"><label>Confirm new password</label><input type="password" id="cp-confirm" placeholder="Confirm new password"/></div>
+      <button class="btn btn-o btn-sm" onclick="changePassword()" style="margin-bottom:1.5rem">Update password</button>
+      <div class="err" id="cp-err"></div>
+      <div id="cp-ok" style="color:var(--green-mid);font-size:13px;font-weight:600;margin-bottom:1rem;display:none">Password updated successfully!</div>
+
+      <div class="sh" style="margin-top:1.5rem"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m5.2-13.2l-3 3m-2.4 2.4l-3 3M23 12h-6m-6 0H1m18.2 5.2l-3-3m-2.4-2.4l-3-3"/></svg>Login history</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:.75rem">Recent member login activity. Last 20 logins shown.</div>
+      <div id="login-history" style="font-size:12px;max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rs);background:#fff"></div>
+      <button class="btn btn-o btn-sm" onclick="loadLoginHistory()" style="margin-top:.5rem;margin-bottom:1.5rem">Refresh login history</button>
+
+      <div class="sh" style="margin-top:1.5rem"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export data</div>
+      <div class="xbtns">
+        <button class="btn btn-o btn-sm" onclick="exportCSV()">Export CSV</button>
+        <button class="btn btn-o btn-sm" onclick="exportGPX()">Export GPX</button>
+        <button class="btn btn-o btn-sm" onclick="exportJSON()">Full backup</button>
+      </div>
+      <div style="height:2rem"></div>
+    </div>
+
+  </div>
+  <div style="text-align:center;padding:1.5rem 1rem;font-size:11px;color:var(--hint);line-height:1.6">
+    <div style="margin-bottom:4px">Riverside Cemetery of Oswego, Inc.</div>
+    <div>Licensed Software © 2025 Irvin Hill | Burial Data © Riverside Cemetery</div>
+    <div style="margin-top:6px;font-size:10px">Software licensed to Riverside Cemetery of Oswego, Inc. under perpetual license.<br>Cemetery retains full ownership of all burial records and data.</div>
+  </div>
+  <div style="text-align:center;padding:1rem;font-size:10px;color:var(--hint);border-top:1px solid var(--border)">
+    Licensed Software © 2025 Irvin Hill | Data © Riverside Cemetery of Oswego, Inc.
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const RK='rc_records',MK='rc_members',PK='rc_photos',SK='rc_sb';
+let cu=null,curRole='member',prevPg='rec',dmap=null,mmap=null,curPhoto=null,sb=null,useCloud=false;
+
+const SETUP_SQL=`-- Run this in your Supabase SQL Editor
+
+create table if not exists burials (
+  id bigserial primary key,
+  first_name text, last_name text, dob text, dod text,
+  age int, gender text, section text, lot text, grave text,
+  owner text, relation text, notable int default 0,
+  notes text, lat float, lng float,
+  photo_url text,
+  book_number text, page_number text, lot_size text,
+  added_by text, added_at timestamptz default now()
+);
+alter table burials add column if not exists book_number text;
+alter table burials add column if not exists page_number text;
+alter table burials add column if not exists lot_size text;
+
+create table if not exists members (
+  id bigserial primary key,
+  name text, email text unique, pw text,
+  role text default 'member', active bool default true
+);
+
+create table if not exists login_log (
+  id bigserial primary key,
+  member_email text,
+  member_name text,
+  login_at timestamptz default now(),
+  ip_address text
+);
+
+-- Enable row level security
+alter table burials enable row level security;
+alter table members enable row level security;
+alter table login_log enable row level security;
+create policy "allow_all_burials" on burials for all using (true) with check (true);
+create policy "allow_all_members" on members for all using (true) with check (true);
+create policy "allow_all_login_log" on login_log for all using (true) with check (true);
+
+-- Insert default admin and member
+insert into members (name,email,pw,role,active) values
+  ('Cemetery Admin','admin@riverside.org','admin123','admin',true),
+  ('Active Member','member@example.com','member123','member',true)
+on conflict (email) do nothing;
+
+-- Insert Section M Lot 6 records
+insert into burials (first_name,last_name,dob,dod,age,gender,section,lot,grave,owner,relation,notable,notes,lat,lng) values
+('Catherine Van Rensselaer Schuyler','Cochran','Feb 20, 1781','Aug 26, 1857',76,'Female','M','6','1','Malcolm / Cochran','Lot owner; wife of Maj. James Cochran',1,'Youngest daughter of Gen. Philip Schuyler. Goddaughter of George and Martha Washington. Her sister Elizabeth Schuyler married Alexander Hamilton. Moved to Oswego 1825.',43.42310,-76.47620),
+('Major James','Cochran','Feb 11, 1769','Nov 7, 1848',79,'Male','M','6','2','Malcolm / Cochran','Husband of Catherine Schuyler (2nd marriage)',1,'U.S. Congressman (1797–1799), NY State Senator (1814–1818), Postmaster of Oswego (1841–1845). Son of Surgeon General Dr. John Cochran. Nephew of Gen. Philip Schuyler.',43.42312,-76.47618),
+('Emma Lawrence','Malcolm','Jan 11, 1822','Mar 30, 1865',43,'Female','M','6','3','Malcolm / Cochran','Wife of Capt. William Schuyler Malcolm',1,'Born Bainbridge, NY. Daughter of Richard L. Lawrence and Sarah Matilda Dezeng Lawrence. Mother of seven children.',43.42308,-76.47622),
+('Capt. William Schuyler','Malcolm Sr.','Feb 23, 1810','Feb 27, 1890',80,'Male','M','6','4','Malcolm / Cochran','Grandson of Gen. Philip Schuyler',1,'Grandson of Gen. Philip Schuyler (Revolutionary War). First alderman of Oswego 1848. Assistant U.S. Engineer 1854–1869. Captain of lake vessels on Lake Ontario.',43.42314,-76.47616)
+on conflict do nothing;`;
+
+const defMembers=[
+  {id:1,name:'Cemetery Admin',email:'admin@riverside.org',pw:'admin123',role:'admin',active:true},
+  {id:2,name:'Active Member',email:'member@example.com',pw:'member123',role:'member',active:true}
+];
+const defRecords=[
+  {id:1,first_name:'Catherine Van Rensselaer Schuyler',last_name:'Cochran',dob:'Feb 20, 1781',dod:'Aug 26, 1857',age:76,gender:'Female',burial_section:'M',lot_number:'6',grave_number:'1',lot_owner:'Malcolm / Cochran',relation:'Lot owner; wife of Maj. James Cochran',notable:1,notes:'Youngest daughter of Gen. Philip Schuyler. Goddaughter of George and Martha Washington. Her sister Elizabeth Schuyler married Alexander Hamilton.',lat:43.42310,lng:-76.47620},
+  {id:2,first_name:'Major James',last_name:'Cochran',dob:'Feb 11, 1769',dod:'Nov 7, 1848',age:79,gender:'Male',burial_section:'M',lot_number:'6',grave_number:'2',lot_owner:'Malcolm / Cochran',relation:'Husband of Catherine Schuyler',notable:1,notes:'U.S. Congressman (1797–1799), NY State Senator (1814–1818), Postmaster of Oswego (1841–1845). Nephew of Gen. Philip Schuyler.',lat:43.42312,lng:-76.47618},
+  {id:3,first_name:'Emma Lawrence',last_name:'Malcolm',dob:'Jan 11, 1822',dod:'Mar 30, 1865',age:43,gender:'Female',burial_section:'M',lot_number:'6',grave_number:'3',lot_owner:'Malcolm / Cochran',relation:'Wife of Capt. William Schuyler Malcolm',notable:1,notes:'Born Bainbridge, NY. Mother of seven children.',lat:43.42308,lng:-76.47622},
+  {id:4,first_name:'Capt. William Schuyler',last_name:'Malcolm Sr.',dob:'Feb 23, 1810',dod:'Feb 27, 1890',age:80,gender:'Male',burial_section:'M',lot_number:'6',grave_number:'4',lot_owner:'Malcolm / Cochran',relation:'Grandson of Gen. Philip Schuyler',notable:1,notes:'Grandson of Gen. Philip Schuyler. First alderman of Oswego 1848. Assistant U.S. Engineer 1854–1869.',lat:43.42314,lng:-76.47616}
+];
+
+function ls(k){try{const d=localStorage.getItem(k);return d?JSON.parse(d):null}catch{return null}}
+function lss(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){toast('Storage full')}}
+function getRecs(){return ls(RK)||defRecords}
+function setRecs(r){lss(RK,r)}
+function getMems(){return ls(MK)||defMembers}
+function setMems(m){lss(MK,m)}
+function getPhotos(){return ls(PK)||{}}
+function getPhoto(id){return(getPhotos()[id]||null)}
+function savePhotoLocal(id,data){const p=getPhotos();p[id]=data;lss(PK,p)}
+function delPhotoLocal(id){const p=getPhotos();delete p[id];lss(PK,p)}
+
+function copySQL(){
+  navigator.clipboard.writeText(SETUP_SQL).then(()=>toast('SQL copied — paste into Supabase SQL Editor and click Run')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=SETUP_SQL;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    toast('SQL copied to clipboard');
+  });
+}
+
+async function connectCloud(){
+  const url=document.getElementById('sb-url').value.trim();
+  const key=document.getElementById('sb-key').value.trim();
+  const err=document.getElementById('sb-err');
+  if(!url||!key){err.style.display='block';err.textContent='Please enter both URL and key.';return}
+  err.style.display='none';
+  try{
+    sb=window.supabase.createClient(url,key);
+    const {error}=await sb.from('members').select('id').limit(1);
+    if(error)throw error;
+    lss(SK,{url,key});
+    useCloud=true;
+    document.getElementById('setup-screen').style.display='none';
+    document.getElementById('auth').style.display='flex';
+    updateSyncBadge();
+    toast('Connected to Supabase successfully!');
+  }catch(e){
+    err.style.display='block';err.textContent='Connection failed: '+e.message;
+  }
+}
+
+async function reconnectCloud(){
+  const url=document.getElementById('adm-url').value.trim();
+  const key=document.getElementById('adm-key').value.trim();
+  if(!url||!key){toast('Enter URL and key');return}
+  try{
+    sb=window.supabase.createClient(url,key);
+    const {error}=await sb.from('members').select('id').limit(1);
+    if(error)throw error;
+    lss(SK,{url,key});useCloud=true;
+    updateSyncBadge();updateConnStatus();toast('Cloud connected!');
+  }catch(e){toast('Failed: '+e.message)}
+}
+
+function skipCloud(){
+  document.getElementById('setup-screen').style.display='none';
+  document.getElementById('auth').style.display='flex';
+  updateSyncBadge();
+}
+
+function updateSyncBadge(){
+  const b=document.getElementById('sync-badge');
+  if(useCloud){b.className='sync-badge sync-ok';b.innerHTML='<span class="cloud-dot"></span>Cloud synced';}
+  else{b.className='sync-badge sync-local';b.innerHTML='<span class="cloud-dot off"></span>Local storage';}
+}
+
+function updateConnStatus(){
+  loadLoginHistory();
+  const b=document.getElementById('conn-status-box');
+  if(b){
+    if(useCloud){b.className='conn-status conn-ok';b.textContent='✓ Connected to Supabase — syncing across all devices';}
+    else{b.className='conn-status conn-off';b.textContent='⚠ Using local storage — not synced across devices';}
+  }
+  const saved=ls(SK);
+  if(saved){
+    const ui=document.getElementById('adm-url');const ki=document.getElementById('adm-key');
+    if(ui&&!ui.value)ui.value=saved.url;if(ki&&!ki.value)ki.value=saved.key;
+  }
+}
+
+function setRole(r,btn){curRole=r;document.querySelectorAll('.rtab').forEach(t=>t.classList.remove('on'));btn.classList.add('on')}
+
+async function login(){
+  const e=document.getElementById('le').value.trim().toLowerCase();
+  const p=document.getElementById('lp').value;
+  const err=document.getElementById('lerr');
+  let user=null;
+  if(useCloud&&sb){
+    const {data}=await sb.from('members').select('*').eq('email',e).eq('pw',p).eq('active',true).single();
+    user=data;
+  } else {
+    user=getMems().find(m=>m.email.toLowerCase()===e&&m.pw===p&&m.active);
+  }
+  if(!user){err.style.display='block';return}
+  err.style.display='none';cu=user;
+  // Log the login
+  if(useCloud&&sb){
+    try{
+      await sb.from('login_log').insert([{member_email:user.email,member_name:user.full_name}]);
+    }catch(e){/* Fail silently if logging fails */}
+  }
+  document.getElementById('auth').style.display='none';
+  document.getElementById('app').style.display='flex';
+  document.getElementById('ubadge').textContent=user.member_role==='admin'?'Admin':'Member';
+  document.getElementById('tsub').textContent=user.full_name+' · Oswego, NY';
+  if(user.member_role==='admin'){document.getElementById('ni-add').style.display='flex';document.getElementById('ni-adm').style.display='flex';}
+  go('map');
+}
+
+function logout(){
+  cu=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('auth').style.display='flex';
+  document.getElementById('le').value='';document.getElementById('lp').value='';
+  if(mmap){mmap.remove();mmap=null}
+}
+
+function isAdmin(){return cu&&cu.member_role==='admin'}
+
+function go(pg){
+  if((pg==='add'||pg==='adm')&&!isAdmin()){toast('Admin access only');return;}
+  ['map','rec','add','det','adm'].forEach(p=>{
+    const el=document.getElementById('p'+p.charAt(0).toUpperCase()+p.slice(1));if(el)el.style.display='none';
+    const ni=document.getElementById('ni-'+p);if(ni)ni.classList.remove('on');
+  });
+  document.getElementById('p'+pg.charAt(0).toUpperCase()+pg.slice(1)).style.display='block';
+  const ni=document.getElementById('ni-'+pg);if(ni)ni.classList.add('on');
+  if(pg==='map')initMap();
+  if(pg==='rec'){updateStats();renderRec()}
+  if(pg==='adm'){renderMems();updateConnStatus()}
+  if(pg!=='det')prevPg=pg;
+}
+function goBack(){go(prevPg==='det'?'rec':prevPg)}
+
+function initMap(){
+  if(mmap)return;
+  setTimeout(()=>{
+    mmap=L.map('map').setView([43.4231,-76.4758],17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:20}).addTo(mmap);
+    plotAll();
+  },80);
+}
+
+async function plotAll(){
+  if(!mmap)return;
+  const recs=await loadRecs();
+  const photos=getPhotos();
+  const pinned=recs.filter(r=>r.lat&&r.lng);
+  document.getElementById('mapinfo').textContent=pinned.length+' of '+recs.length+' burials GPS-pinned. Tap a marker to view.';
+  pinned.forEach(r=>{
+    const hasPhoto=!!(photos[r.id]||r.photo_url);
+    const color=hasPhoto?'#C9A84C':r.notable?'#1B3A2D':'#185FA5';
+    const icon=L.divIcon({className:'',html:`<div style="width:13px;height:13px;border-radius:50%;background:${color};border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.35)"></div>`,iconSize:[13,13],iconAnchor:[6,6]});
+    const m=L.marker([r.lat,r.lng],{icon}).addTo(mmap);
+    m.bindPopup(`<strong style="font-size:14px">${r.first_name} ${r.last_name}</strong><br><small style="color:#666">${r.dob||'?'} – ${r.dod||'?'}<br>Section ${r.burial_section||'?'}, Lot ${r.lot_number||'?'}, Grave ${r.grave_number||'?'}</small>${r.veteran?'<br><small style="color:#6B3E0A;font-weight:600">🎖 Veteran'+( r.vet_branch?' · '+r.vet_branch:'')+'</small>':''}${hasPhoto?'<br><small style="color:#C9A84C;font-weight:600">📷 Headstone photo available</small>':''}`);
+    m.on('click',()=>showDet(r.id));
+  });
+}
+
+async function loadRecs(){
+  if(useCloud&&sb){
+    const {data,error}=await sb.from('burials').select('*').order('id');
+    if(!error&&data)return data;
+  }
+  return getRecs();
+}
+
+async function loadMems(){
+  if(useCloud&&sb){
+    const {data,error}=await sb.from('members').select('*').order('id');
+    if(!error&&data)return data;
+  }
+  return getMems();
+}
+
+async function updateStats(){
+  const r=await loadRecs();
+  const photos=getPhotos();
+  document.getElementById('st').textContent=r.length;
+  document.getElementById('sg').textContent=r.filter(x=>x.lat&&x.lng).length;
+  document.getElementById('sp').textContent=r.filter(x=>photos[x.id]||x.photo_url).length;
+  document.getElementById('sn').textContent=r.filter(x=>x.notable).length;
+  const sv=document.getElementById('sv');if(sv)sv.textContent=r.filter(x=>x.veteran).length;
+}
+
+async function renderRec(){
+  const q=(document.getElementById('srch').value||'').toLowerCase();
+  const recs=await loadRecs();
+  const photos=getPhotos();
+  const fil=recs.filter(r=>`${r.first_name} ${r.last_name} ${r.burial_section||''} ${r.lot_number||''} ${r.lot_owner||''} ${r.notes||''}`.toLowerCase().includes(q));
+  const el=document.getElementById('rlist');
+  if(!fil.length){el.innerHTML='<div class="empty">No records found.</div>';return}
+  el.innerHTML=fil.map(r=>{
+    const ph=photos[r.id]||r.photo_url;
+    const thumb=ph?`<img class="rcard-thumb" src="${ph}" alt="Headstone thumbnail" loading="lazy"/>`:`<div class="rcard-thumb-ph">No photo yet</div>`;
+    return`<div class="rcard" onclick="showDet(${r.id})">
+      ${thumb}
+      <div class="rname">${r.first_name} ${r.last_name}</div>
+      <div class="rmeta">${r.dob||'?'} – ${r.dod||'?'}<br>Section ${r.burial_section||'?'} · Lot ${r.lot_number||'?'} · Grave ${r.grave_number||'?'}</div>
+      <div class="pills">
+        ${r.notable?'<span class="pill p-not">Notable</span>':''}
+        ${r.veteran?'<span class="pill" style="background:#fff8e6;color:#6B3E0A;border:1px solid #e8c84a">🎖 Veteran</span>':''}
+        ${r.lat&&r.lng?'<span class="pill p-gps">GPS pinned</span>':''}
+        ${ph?'<span class="pill p-ph">📷 Headstone photo</span>':''}
+        
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function showDet(id){
+  go('det');
+  const recs=await loadRecs();
+  const r=recs.find(x=>x.id==id);if(!r)return;
+  const photos=getPhotos();
+  const photo=photos[r.id]||r.photo_url||null;
+  const isAdmin=cu&&cu.member_role==='admin';
+  let html=`<div class="dcard">
+    <div class="dname">${r.first_name} ${r.last_name}</div>
+    <div class="ddates">${r.dob||'?'} – ${r.dod||'?'}${r.age?' · Age '+r.age:''}</div>
+    <div class="pills" style="margin-bottom:.9rem">
+      ${r.notable?'<span class="pill p-not">Notable burial</span>':''}
+      ${r.lat&&r.lng?'<span class="pill p-gps">GPS pinned</span>':''}
+      ${photo?'<span class="pill p-ph">📷 Headstone photo</span>':''}
+    </div>`;
+  if(photo){
+    html+=`<img class="hstone-photo" src="${photo}" alt="Headstone of ${r.first_name} ${r.last_name}" onclick="openLB('${photo}')"/>`;
+    if(isAdmin)html+=`<div style="text-align:right;margin-bottom:.9rem"><button class="btn btn-d btn-sm" onclick="removeRecPhoto(${id})">Remove photo</button></div>`;
+  } else {
+    html+=`<div class="hstone-ph">No headstone photo yet${isAdmin?' — add one below':''}</div>`;
+    if(isAdmin){
+      html+=`<div style="margin-bottom:.9rem">
+        <div class="photo-upload-area" style="padding:1rem">
+          <input type="file" accept="image/*" capture="environment" onchange="addPhotoToRecord(${id},this)"/>
+          <p style="font-size:13px;color:var(--muted);margin:0">Tap to photograph or upload</p>
+        </div>
+      </div>`;
+    }
+  }
+  html+=`<div class="dgrid">
+    <div class="di"><div class="lb">Section</div><div class="vl">${r.burial_section||'—'}</div></div>
+    <div class="di"><div class="lb">Lot</div><div class="vl">${r.lot_number||'—'}</div></div>
+    <div class="di"><div class="lb">Grave</div><div class="vl">${r.grave_number||'—'}</div></div>
+    <div class="di"><div class="lb">Gender</div><div class="vl">${r.gender||'—'}</div></div>
+    <div class="di"><div class="lb">Lot owner</div><div class="vl">${r.lot_owner||'—'}</div></div>
+    <div class="di"><div class="lb">Relationship</div><div class="vl">${r.relation||'—'}</div></div>
+    <div class="di"><div class="lb">Book #</div><div class="vl">${r.book_number||'—'}</div></div>
+    <div class="di"><div class="lb">Page #</div><div class="vl">${r.page_number||'—'}</div></div>
+    <div class="di"><div class="lb">Lot size</div><div class="vl">${r.lot_size||'—'}</div></div>
+    ${r.lat&&r.lng?`<div class="di"><div class="lb">Latitude</div><div class="vl" style="font-family:monospace;font-size:13px">${parseFloat(r.lat).toFixed(6)}</div></div><div class="di"><div class="lb">Longitude</div><div class="vl" style="font-family:monospace;font-size:13px">${parseFloat(r.lng).toFixed(6)}</div></div>`:''}
+  </div>`;
+  if(r.lat&&r.lng)html+=`<div id="dmap"></div>`;
+  if(r.notes)html+=`<div class="nbox">${r.notes}</div>`;
+  if(isAdmin)html+=`<div class="arow"><button class="btn btn-d btn-sm" onclick="delRec(${id})">Delete record</button></div>`;
+  html+=`</div>`;
+  document.getElementById('dcont').innerHTML=html;
+  if(r.lat&&r.lng){
+    setTimeout(()=>{
+      if(dmap){dmap.remove();dmap=null}
+      dmap=L.map('dmap').setView([r.lat,r.lng],19);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:20}).addTo(dmap);
+      L.marker([r.lat,r.lng]).addTo(dmap).bindPopup(`${r.first_name} ${r.last_name}`).openPopup();
+    },80);
+  }
+}
+
+function addPhotoToRecord(id,input){
+  const file=input.files[0];if(!file)return;
+  compress(file,async data=>{
+    savePhotoLocal(id,data);
+    if(useCloud&&sb){
+      await sb.from('burials').update({photo_url:data}).eq('id',id);
+    }
+    toast('Headstone photo saved');showDet(id);
+    if(mmap){mmap.remove();mmap=null}
+  });
+}
+
+function removeRecPhoto(id){
+  if(!confirm('Remove this headstone photo?'))return;
+  delPhotoLocal(id);
+  if(useCloud&&sb)sb.from('burials').update({photo_url:null}).eq('id',id);
+  toast('Photo removed');showDet(id);
+  if(mmap){mmap.remove();mmap=null}
+}
+
+function handlePhoto(input){
+  const file=input.files[0];if(!file)return;
+  compress(file,data=>{
+    curPhoto=data;
+    document.getElementById('photo-preview').src=data;
+    document.getElementById('photo-preview-wrap').style.display='block';
+    document.getElementById('photo-drop').style.display='none';
+  });
+}
+
+function compress(file,cb){
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const c=document.createElement('canvas');
+      const MAX=1200;let w=img.width,h=img.height;
+      if(w>MAX){h=Math.round(h*MAX/w);w=MAX}
+      c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+      cb(c.toDataURL('image/jpeg',0.82));
+    };img.src=e.target.result;
+  };r.readAsDataURL(file);
+}
+
+function removePhoto(){
+  curPhoto=null;
+  document.getElementById('photo-preview-wrap').style.display='none';
+  document.getElementById('photo-drop').style.display='block';
+  document.getElementById('photo-input').value='';
+}
+
+function openLB(src){document.getElementById('lb-img').src=src;document.getElementById('lb').classList.add('on')}
+function closeLB(){document.getElementById('lb').classList.remove('on')}
+
+function toggleVetFields(){
+  const v=document.getElementById('avet').value;
+  document.getElementById('vet-fields').style.display=v==='1'?'block':'none';
+}
+
+function captureGPS(){
+  const st=document.getElementById('gst');
+  st.textContent='Requesting GPS…';
+  if(!navigator.geolocation){st.textContent='GPS not available. Enter coordinates manually.';return}
+  navigator.geolocation.getCurrentPosition(pos=>{
+    const lat=pos.coords.latitude,lng=pos.coords.longitude;
+    document.getElementById('alat').value=lat.toFixed(6);
+    document.getElementById('alng').value=lng.toFixed(6);
+    const c=document.getElementById('gcrd');c.style.display='block';c.textContent=lat.toFixed(6)+', '+lng.toFixed(6);
+    st.textContent='Captured · Accuracy ±'+Math.round(pos.coords.accuracy)+'m';
+    toast('GPS location captured');
+  },()=>{st.textContent='Could not get GPS. Check browser permissions.';},{enableHighAccuracy:true,timeout:12000});
+}
+
+async function saveRec(){
+  const f=document.getElementById('af').value.trim();
+  const l=document.getElementById('al').value.trim();
+  const err=document.getElementById('aerr');
+  if(!f||!l){err.style.display='block';return}
+  err.style.display='none';
+  const btn=document.getElementById('save-btn');btn.textContent='Saving...';btn.disabled=true;
+  const lat=parseFloat(document.getElementById('alat').value)||null;
+  const lng=parseFloat(document.getElementById('alng').value)||null;
+  const rec={
+    first_name:f,last_name:l,
+    dob:document.getElementById('adb').value,
+    dod:document.getElementById('adod').value,
+    age:document.getElementById('aage').value?parseInt(document.getElementById('aage').value):null,
+    gender:document.getElementById('agn').value,
+    burial_section:document.getElementById('asec').value.toUpperCase(),
+    lot_number:document.getElementById('alot').value,
+    grave_number:document.getElementById('agr').value,
+    lot_owner:document.getElementById('aown').value,
+    relation:document.getElementById('arel').value,
+    book_number:document.getElementById('abook').value,
+    page_number:document.getElementById('apage').value,
+    lot_size:document.getElementById('alotsize').value,
+    notable:parseInt(document.getElementById('anot').value),
+    notes:document.getElementById('anotes').value,
+    veteran:parseInt(document.getElementById('avet').value)||0,
+    vet_branch:document.getElementById('abranch').value,
+    vet_rank:document.getElementById('arank').value,
+    vet_service_from:document.getElementById('asvfrom').value,
+    vet_service_to:document.getElementById('asvto').value,
+    vet_war:document.getElementById('awar').value,
+    vet_awards:document.getElementById('aawards').value,
+    lat,lng,
+    photo_url:curPhoto||null,
+    added_by:cu.full_name,added_at:new Date().toISOString()
+  };
+  if(useCloud&&sb){
+    const {data,error}=await sb.from('burials').insert([rec]).select().single();
+    if(!error&&data&&curPhoto)savePhotoLocal(data.id,curPhoto);
+  } else {
+    const recs=getRecs();
+    const newR={...rec,id:recs.length?Math.max(...recs.map(r=>r.id))+1:1};
+    recs.push(newR);setRecs(recs);
+    if(curPhoto)savePhotoLocal(newR.id,curPhoto);
+  }
+  ['af','al','adb','adod','aage','asec','alot','agr','aown','arel','anotes','alat','alng','arank','asvfrom','asvto','aawards','abook','apage','alotsize'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  document.getElementById('agn').value='';document.getElementById('anot').value='0';
+  document.getElementById('avet').value='0';document.getElementById('abranch').value='';
+  document.getElementById('awar').value='';document.getElementById('vet-fields').style.display='none';
+  removePhoto();curPhoto=null;
+  document.getElementById('gcrd').style.display='none';
+  document.getElementById('gst').textContent='Stand at the grave and tap to pin its exact location.';
+  if(mmap){mmap.remove();mmap=null}
+  btn.textContent='Save burial record';btn.disabled=false;
+  toast('Record saved: '+f+' '+l);go('rec');
+}
+
+async function delRec(id){
+  if(!confirm('Delete this burial record? This cannot be undone.'))return;
+  if(useCloud&&sb){await sb.from('burials').delete().eq('id',id);}
+  else{setRecs(getRecs().filter(r=>r.id!==id))}
+  delPhotoLocal(id);
+  if(mmap){mmap.remove();mmap=null}
+  toast('Record deleted');goBack();
+}
+
+async function renderMems(){
+  const mems=await loadMems();
+  document.getElementById('mlist').innerHTML=mems.map(m=>`
+    <div class="mcard">
+      <div class="minfo"><div class="mn">${m.full_name}</div><div class="me">${m.email}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+        <span class="mrole ${m.member_role==='admin'?'r-adm':m.active?'r-mem':'r-off'}">${m.member_role==='admin'?'Admin':m.active?'Member':'Inactive'}</span>
+        <button class="tbtn" onclick="toggleMem(${m.id})">${m.active?'Deactivate':'Activate'}</button>
+        <button class="tbtn" onclick="prefillPwChange('${m.email}')">Reset pw</button>
+        <button class="tbtn" style="color:var(--red);border-color:var(--red)" onclick="deleteMember(${m.id},\`${m.full_name}\`)">Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleMem(id){
+  const mems=await loadMems();
+  const m=mems.find(x=>x.id==id);if(!m)return;
+  m.active=!m.active;
+  if(useCloud&&sb){await sb.from('members').update({active:m.active}).eq('id',id);}
+  else{setMems(mems)}
+  renderMems();toast(m.active?'Member activated':'Member deactivated');
+}
+
+async function deleteMember(id, name){
+  if(!confirm('Permanently remove '+name+'? They will no longer be able to log in. This cannot be undone.'))return;
+  if(useCloud&&sb){
+    const {error}=await sb.from('members').delete().eq('id',id);
+    if(error){toast('Delete failed: '+error.message);return;}
+  } else {
+    const mems=getMems().filter(m=>m.id!==id);
+    setMems(mems);
+  }
+  toast(name+' removed');
+  renderMems();
+}
+
+async function addMember(){
+  const n=document.getElementById('mn').value.trim();
+  const e=document.getElementById('me').value.trim().toLowerCase();
+  const p=document.getElementById('mpw').value;
+  const r=document.getElementById('mr').value;
+  const err=document.getElementById('merr');
+  if(!n||!e||!p){err.textContent='All fields required.';err.style.display='block';return}
+  if(useCloud&&sb){
+    const {error}=await sb.from('members').insert([{full_name:n,email:e,pw:p,member_role:r,active:true}]);
+    if(error){err.textContent=error.message;err.style.display='block';return}
+  } else {
+    const mems=getMems();
+    if(mems.find(m=>m.email.toLowerCase()===e)){err.textContent='Email already exists.';err.style.display='block';return}
+    mems.push({id:mems.length?Math.max(...mems.map(m=>m.id))+1:1,name:n,email:e,pw:p,role:r,active:true});
+    setMems(mems);
+  }
+  document.getElementById('mn').value='';document.getElementById('me').value='';document.getElementById('mpw').value='';
+  err.style.display='none';renderMems();toast('Member added: '+n);
+}
+
+function prefillPwChange(email){
+  document.getElementById('cp-email').value=email;
+  document.getElementById('cp-new').value='';
+  document.getElementById('cp-confirm').value='';
+  document.getElementById('cp-err').style.display='none';
+  document.getElementById('cp-ok').style.display='none';
+  // Scroll to password section
+  document.getElementById('cp-email').scrollIntoView({behavior:'smooth'});
+}
+
+async function changePassword(){
+  const email=document.getElementById('cp-email').value.trim().toLowerCase();
+  const pw=document.getElementById('cp-new').value;
+  const confirm=document.getElementById('cp-confirm').value;
+  const err=document.getElementById('cp-err');
+  const ok=document.getElementById('cp-ok');
+  err.style.display='none';ok.style.display='none';
+  if(!email||!pw||!confirm){err.textContent='All fields are required.';err.style.display='block';return}
+  if(pw!==confirm){err.textContent='Passwords do not match.';err.style.display='block';return}
+  if(pw.length<6){err.textContent='Password must be at least 6 characters.';err.style.display='block';return}
+  if(useCloud&&sb){
+    const {error,count}=await sb.from('members').update({pw}).eq('email',email);
+    if(error){err.textContent='Update failed: '+error.message;err.style.display='block';return}
+  } else {
+    const mems=getMems();
+    const m=mems.find(x=>x.email.toLowerCase()===email);
+    if(!m){err.textContent='Member not found.';err.style.display='block';return}
+    m.pw=pw;setMems(mems);
+  }
+  document.getElementById('cp-email').value='';
+  document.getElementById('cp-new').value='';
+  document.getElementById('cp-confirm').value='';
+  ok.style.display='block';
+  toast('Password updated for '+email);
+}
+
+async function loadLoginHistory(){
+  const el=document.getElementById('login-history');
+  if(!useCloud||!sb){el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--muted)">Login tracking requires cloud connection</div>';return}
+  const {data,error}=await sb.from('login_log').select('*').order('login_at',{ascending:false}).limit(20);
+  if(error||!data||!data.length){el.innerHTML='<div style="padding:1rem;text-align:center;color:var(--muted)">No login history yet</div>';return}
+  el.innerHTML=data.map(log=>{
+    const date=new Date(log.login_at);
+    const timeStr=date.toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+    return`<div style="padding:8px 12px;border-bottom:1px solid var(--border)"><div style="font-weight:600">${log.member_name}</div><div style="color:var(--muted);font-size:11px;margin-top:2px">${log.member_email} · ${timeStr}</div></div>`;
+  }).join('');
+}
+
+async function exportCSV(){
+  const r=await loadRecs();
+  const h=['ID','First','Last','DOB','DOD','Age','Gender','Section','Lot','Grave','Owner','Relationship','Book #','Page #','Lot Size','Notable','Latitude','Longitude','Notes','Added By','Added At'];
+  const rows=r.map(x=>[x.id,x.first_name,x.last_name,x.dob,x.dod,x.age,x.gender,x.burial_section,x.lot_number,x.grave_number,x.lot_owner,x.relation,x.book_number,x.page_number,x.lot_size,x.notable?'Yes':'No',x.lat||'',x.lng||'',x.notes,x.added_by,x.added_at].map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(','));
+  dl([h.join(','),...rows].join('\n'),'text/csv','riverside_burials.csv');
+}
+
+async function exportGPX(){
+  const recs=(await loadRecs()).filter(r=>r.lat&&r.lng);
+  const wpts=recs.map(r=>`  <wpt lat="${r.lat}" lon="${r.lng}"><name>${r.first_name} ${r.last_name}</name><desc>Section ${r.burial_section}, Lot ${r.lot_number}, Grave ${r.grave_number}. ${r.dob||'?'} - ${r.dod||'?'}</desc></wpt>`).join('\n');
+  dl(`<?xml version="1.0"?><gpx version="1.1" creator="Riverside Cemetery of Oswego">\n${wpts}\n</gpx>`,'application/gpx+xml','riverside_gps.gpx');
+}
+
+async function exportJSON(){
+  dl(JSON.stringify({records:await loadRecs(),exported:new Date().toISOString(),cemetery:'Riverside Cemetery of Oswego'},null,2),'application/json','riverside_backup.json');
+}
+
+function dl(content,type,name){
+  const a=document.createElement('a');a.href='data:'+type+';charset=utf-8,'+encodeURIComponent(content);a.download=name;a.click();
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2800);
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeLB()});
+
+(function init(){
+  // Hardcoded credentials — members go straight to login
+  const SUPABASE_URL='https://gvlqxsbtsuyonqgndbml.supabase.co';
+  const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd2bHF4c2J0c3V5b25xZ25kYm1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NjA4OTUsImV4cCI6MjA5NTEzNjg5NX0.F4VI4azk5Z2B88yxSZqdwaNkNFK9AvkG2KR_NKkU1vU';
+  try{
+    sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    useCloud=true;
+    document.getElementById('setup-screen').style.display='none';
+    document.getElementById('auth').style.display='flex';
+    updateSyncBadge();
+  }catch(e){
+    document.getElementById('setup-screen').style.display='flex';
+  }
+})();
+</script>
+</body>
+</html>
