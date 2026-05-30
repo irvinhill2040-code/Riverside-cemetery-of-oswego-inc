@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#1B3A2D"/>
+  <line x1="30" y1="35" x2="162" y2="35" stroke="#C9A84C" stroke-width="2"/>
+  <text x="96" y="85" font-family="Georgia, serif" font-size="32" font-weight="bold" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">RIVERSIDE</text>
+  <text x="96" y="115" font-family="Georgia, serif" font-size="18" fill="#C9A84C" text-anchor="middle" letter-spacing="2">CEMETERY</text>
+  <line x1="30" y1="135" x2="162" y2="135" stroke="#C9A84C" stroke-width="2"/>
+  <circle cx="30" cy="30" r="3" fill="#C9A84C"/>
+  <circle cx="162" cy="30" r="3" fill="#C9A84C"/>
+  <circle cx="30" cy="162" r="3" fill="#C9A84C"/>
+  <circle cx="162" cy="162" r="3" fill="#C9A84C"/>
+</svg>
